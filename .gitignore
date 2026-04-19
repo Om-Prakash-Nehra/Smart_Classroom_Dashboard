@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Django
+*.sqlite3
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Virtual environments
+venv/
+myenv/
+env/
+ENV/
+
+# Static & media
+staticfiles/
+static/
+media/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+
+# Node (optional future-proofing)
+node_modules/
