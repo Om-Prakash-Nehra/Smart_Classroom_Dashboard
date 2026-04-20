@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
 
 # Load environment variables
 load_dotenv()
@@ -8,11 +9,11 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ================= SECURITY =================
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-secret-key")
 
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']  # change later for production
 
 # ================= APPLICATIONS =================
 INSTALLED_APPS = [
@@ -22,9 +23,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'rest_framework',
     'corsheaders',
     'channels',
+
     'api',
     'dashboard',
 ]
@@ -32,7 +35,9 @@ INSTALLED_APPS = [
 # ================= MIDDLEWARE =================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # for static files
     'corsheaders.middleware.CorsMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -47,7 +52,7 @@ ROOT_URLCONF = 'classroom_monitor.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [],  # add templates folder if needed
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -66,13 +71,14 @@ ASGI_APPLICATION = 'classroom_monitor.asgi.application'
 
 # ================= DATABASE =================
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        ssl_require=False
+    )
 }
 
-# ================= AUTH PASSWORD VALIDATORS =================
+# ================= PASSWORD VALIDATION =================
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -87,9 +93,12 @@ USE_I18N = True
 USE_TZ = True
 
 # ================= STATIC FILES =================
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # required for Render
 
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# ================= DEFAULT FIELD =================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ================= CORS =================
@@ -109,10 +118,9 @@ LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/dashboard/admin/'
 LOGOUT_REDIRECT_URL = '/dashboard/'
 
-# ================= TWILIO SMS CONFIGURATION =================
+# ================= TWILIO CONFIG =================
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 ALERT_PHONE_NUMBER = os.getenv("ALERT_PHONE_NUMBER")
 

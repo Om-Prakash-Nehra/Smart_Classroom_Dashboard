@@ -34,18 +34,23 @@ def send_sms(to_phone_number, message_body):
 def send_empty_room_alert(room_id, empty_duration_minutes, temperature, ac_status, lights_status):
     """
     Send formatted alert for empty room
+    Simple format: Room : 101 Ac on (room empty)
     """
-    message = f"""🏫 SMART CLASSROOM ALERT
-
-Room: {room_id}
-Status: EMPTY for {empty_duration_minutes} minutes
-Temperature: {temperature}°C
-AC: {'ON' if ac_status else 'OFF'}
-Lights: {'ON' if lights_status else 'OFF'}
-
-⚠️ Energy waste detected! Please check the classroom.
-
-- Smart Classroom System"""
+    # Build the "things that are on" part
+    devices_on = []
+    if ac_status:
+        devices_on.append("Ac on")
+    if lights_status:
+        devices_on.append("Lights on")
+    
+    # Create the message
+    if devices_on:
+        devices_text = " " + " ".join(devices_on)
+        message = f"Room : {room_id}{devices_text} (room empty)"
+    else:
+        message = f"Room : {room_id} (room empty)"
+    
+    logger.info(f"Message length: {len(message)} chars, Content: {message}")
     
     # Get phone number from settings
     phone_number = getattr(settings, 'ALERT_PHONE_NUMBER', None)
