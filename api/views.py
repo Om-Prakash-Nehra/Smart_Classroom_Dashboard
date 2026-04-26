@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from datetime import timedelta
 from .models import SensorData, RoomStatus, Alert, SystemConfig
-from .sms_utils import send_empty_room_alert
+from .sms_utils import send_empty_room_alert, send_sms
 from django.conf import settings
 import logging
 
@@ -42,6 +42,7 @@ def update_sensor_data(request):
             print("="*50)
             
             # Save sensor data to database
+            sensor_reading = None
             try:
                 sensor_reading = SensorData.objects.create(
                     accel_x=data.get('accel_x', 0),
@@ -88,11 +89,16 @@ def update_sensor_data(request):
                         room_status.empty_since = None
                         room_status.alert_sent = False  # Reset alert flag when room becomes occupied
                         print("🟢 Room became OCCUPIED - Alert flag reset")
-                else:
-                    if room_status.is_occupied and not room_status.empty_since:
+                else:  # Room is empty
+                    # Check if this is a transition from occupied to empty
+                    if room_status.is_occupied:
                         room_status.last_empty_time = timezone.now()
                         room_status.empty_since = timezone.now()
                         print("🔴 Room became EMPTY - Starting timer")
+                    elif not room_status.empty_since:
+                        # Room was already empty but no empty_since set
+                        room_status.empty_since = timezone.now()
+                        print("🔴 Empty since set to now")
                 
                 room_status.save()
                 print(f"✓ Updated RoomStatus for {room_status.room_id} (Online: True)")
@@ -111,35 +117,47 @@ def update_sensor_data(request):
                     if minutes_empty >= threshold_minutes:
                         print("🚨 TRIGGERING EMPTY ROOM ALERT!")
                         
-                        # Send SMS alert
-                        success, result = send_empty_room_alert(
-                            room_id=room_status.room_id,
-                            empty_duration_minutes=int(minutes_empty),
-                            temperature=room_status.current_temperature,
-                            ac_status=room_status.ac_on,
-                            lights_status=room_status.lights_on
-                        )
+                        # Determine alert type based on what's ON
+                        alert_type = None
+                        if room_status.ac_on and room_status.lights_on:
+                            alert_type = 'both'
+                        elif room_status.ac_on:
+                            alert_type = 'ac'
+                        elif room_status.lights_on:
+                            alert_type = 'lights'
                         
-                        if success:
-                            # Mark alert as sent
-                            room_status.alert_sent = True
-                            room_status.alert_sent_time = timezone.now()
-                            room_status.save()
-                            
-                            # Also create an Alert record in database
-                            Alert.objects.create(
-                                alert_type='ac',
+                        if alert_type:
+                            # Send SMS alert
+                            success, result = send_empty_room_alert(
                                 room_id=room_status.room_id,
+                                empty_duration_minutes=int(minutes_empty),
                                 temperature=room_status.current_temperature,
-                                lux=room_status.current_lux,
-                                sound_level=room_status.current_sound,
-                                motion_detected=room_status.motion_detected,
-                                sent_via='sms'
+                                ac_status=room_status.ac_on,
+                                lights_status=room_status.lights_on
                             )
                             
-                            print(f"✅ SMS sent successfully! {result}")
+                            if success:
+                                # Mark alert as sent in RoomStatus
+                                room_status.alert_sent = True
+                                room_status.alert_sent_time = timezone.now()
+                                room_status.save()
+                                
+                                # Create Alert record in database
+                                alert = Alert.objects.create(
+                                    alert_type=alert_type,
+                                    room_id=room_status.room_id,
+                                    temperature=room_status.current_temperature,
+                                    lux=room_status.current_lux,
+                                    sound_level=room_status.current_sound,
+                                    motion_detected=room_status.motion_detected,
+                                    sent_via='sms'
+                                )
+                                
+                                print(f"✅ Alert created (ID: {alert.id}) and SMS sent successfully!")
+                            else:
+                                print(f"❌ SMS failed: {result}")
                         else:
-                            print(f"❌ SMS failed: {result}")
+                            print("⚠️ Room empty but no devices are ON - no alert needed")
                     else:
                         print(f"⏳ Waiting {threshold_minutes - minutes_empty:.1f} more minutes before alert")
                 
@@ -159,7 +177,7 @@ def update_sensor_data(request):
             return JsonResponse({
                 "status": "success",
                 "message": "Data received successfully",
-                "data_id": sensor_reading.id if 'sensor_reading' in locals() else None
+                "data_id": sensor_reading.id if sensor_reading else None
             }, status=200)
             
         except json.JSONDecodeError as e:
@@ -206,6 +224,7 @@ def alert_endpoint(request):
             print("!"*50)
             
             # Save alert to database
+            alert = None
             try:
                 alert = Alert.objects.create(
                     alert_type=data.get('alert_type', 'ac'),
@@ -230,7 +249,7 @@ def alert_endpoint(request):
             return JsonResponse({
                 "status": "success",
                 "message": "Alert received successfully",
-                "alert_id": alert.id if 'alert' in locals() else None
+                "alert_id": alert.id if alert else None
             }, status=200)
             
         except Exception as e:
@@ -264,6 +283,10 @@ def get_room_status(request, room_id):
             offline_duration_minutes = 0
             last_data_received = None
             
+            # Calculate empty duration
+            empty_duration_minutes = 0
+            empty_since_str = None
+            
             if room_status and room_status.last_data_received:
                 last_data_received = room_status.last_data_received
                 time_since_last_data = timezone.now() - room_status.last_data_received
@@ -282,6 +305,12 @@ def get_room_status(request, room_id):
                 room_status.is_online = False
                 room_status.save()
             
+            # Calculate empty duration if room is empty
+            if room_status and not room_status.is_occupied and room_status.empty_since:
+                empty_duration = timezone.now() - room_status.empty_since
+                empty_duration_minutes = round(empty_duration.total_seconds() / 60, 1)
+                empty_since_str = room_status.empty_since.isoformat()
+            
             if room_status:
                 # If device is offline, return None/null for sensor values
                 if is_online:
@@ -297,7 +326,8 @@ def get_room_status(request, room_id):
                         'motion_detected': room_status.motion_detected,
                         'current_vibration': room_status.current_vibration if hasattr(room_status, 'current_vibration') else 0,
                         'last_occupied_time': room_status.last_occupied_time,
-                        'empty_since': room_status.empty_since,
+                        'empty_since': empty_since_str,
+                        'empty_duration_minutes': empty_duration_minutes,
                         'alert_sent': room_status.alert_sent,
                         'updated_at': room_status.updated_at,
                         'is_online': True,
@@ -318,7 +348,8 @@ def get_room_status(request, room_id):
                         'motion_detected': False,
                         'current_vibration': None,
                         'last_occupied_time': room_status.last_occupied_time,
-                        'empty_since': room_status.empty_since,
+                        'empty_since': empty_since_str,
+                        'empty_duration_minutes': empty_duration_minutes if not room_status.is_occupied else 0,
                         'alert_sent': room_status.alert_sent,
                         'updated_at': room_status.updated_at,
                         'is_online': False,
@@ -340,6 +371,7 @@ def get_room_status(request, room_id):
                     'current_vibration': None,
                     'last_occupied_time': None,
                     'empty_since': None,
+                    'empty_duration_minutes': 0,
                     'alert_sent': False,
                     'updated_at': timezone.now(),
                     'is_online': False,
@@ -361,7 +393,7 @@ def get_room_status(request, room_id):
 
 def get_alerts(request):
     """
-    Get recent alerts
+    Get recent alerts for dashboard
     URL: /api/alerts/
     """
     if request.method == 'GET':
@@ -380,12 +412,14 @@ def get_alerts(request):
                     'lux': alert.lux,
                     'sound_level': alert.sound_level,
                     'motion_detected': alert.motion_detected,
-                    'timestamp': alert.timestamp,
+                    'timestamp': alert.timestamp.isoformat() if alert.timestamp else None,
+                    'sent_via': alert.sent_via,
                 })
             
-            return JsonResponse({'alerts': data}, status=200)
+            return JsonResponse({'alerts': data, 'count': len(data)}, status=200)
             
         except Exception as e:
+            print(f"Error in get_alerts: {e}")
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
@@ -425,6 +459,7 @@ def set_alert_threshold(request):
             'distance_threshold': SystemConfig.get('distance_threshold', '200'),
             'idle_timeout': SystemConfig.get('idle_timeout', '60000'),
             'offline_threshold_minutes': SystemConfig.get('offline_threshold_minutes', '3'),
+            'alert_threshold_minutes': SystemConfig.get('alert_threshold_minutes', '5'),
         }
         return JsonResponse(thresholds, status=200)
     
@@ -509,10 +544,24 @@ def test_sms(request):
     Test endpoint to send test SMS
     URL: /api/test-sms/
     """
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # Return instructions for GET request
+        return JsonResponse({
+            'info': 'Send POST request to test SMS',
+            'example': {
+                'method': 'POST',
+                'content_type': 'application/json',
+                'body': {
+                    'phone': 'optional_phone_number',
+                    'message': 'Your test message here'
+                }
+            },
+            'default_phone': getattr(settings, 'ALERT_PHONE_NUMBER', 'Not configured'),
+            'note': 'Use curl or Postman to test: curl -X POST http://your-server/api/test-sms/ -H "Content-Type: application/json" -d \'{"message": "Hello"}\''
+        })
+    
+    elif request.method == 'POST':
         try:
-            from .sms_utils import send_sms
-            
             data = json.loads(request.body)
             phone = data.get('phone', settings.ALERT_PHONE_NUMBER)
             message = data.get('message', 'Test SMS from Smart Classroom System')
@@ -521,9 +570,45 @@ def test_sms(request):
             
             return JsonResponse({
                 'success': success,
-                'message': result
+                'message': result,
+                'phone_sent_to': phone
             })
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     
-    return JsonResponse({'error': 'Use POST with JSON body'}, status=405)
+    return JsonResponse({'error': 'Use POST with JSON body or GET for info'}, status=405)
+
+
+@csrf_exempt
+def create_test_alert(request):
+    """
+    Endpoint to manually create a test alert
+    URL: /api/create-test-alert/
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            room_id = data.get('room_id', 'CLASSROOM_101')
+            alert_type = data.get('alert_type', 'ac')
+            
+            # Create test alert
+            alert = Alert.objects.create(
+                alert_type=alert_type,
+                room_id=room_id,
+                temperature=data.get('temperature', 25.5),
+                lux=data.get('lux', 300),
+                sound_level=data.get('sound_level', 45),
+                motion_detected=data.get('motion_detected', False),
+                sent_via='test'
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'alert_id': alert.id,
+                'message': f'Test alert created for {room_id}'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Use POST'}, status=405)

@@ -37,7 +37,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # for static files
     'corsheaders.middleware.CorsMiddleware',
-
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -114,9 +113,15 @@ CHANNEL_LAYERS = {
 # ================= APP SETTINGS =================
 ALERT_THRESHOLD_MINUTES = 4
 
-LOGIN_URL = '/admin/login/'
-LOGIN_REDIRECT_URL = '/dashboard/admin/'
-LOGOUT_REDIRECT_URL = '/dashboard/'
+# ================= AUTHENTICATION SETTINGS =================
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/login/'
+
+# Session settings
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = 28800
+SESSION_SAVE_EVERY_REQUEST = True
 
 # ================= TWILIO CONFIG =================
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -124,4 +129,14 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 ALERT_PHONE_NUMBER = os.getenv("ALERT_PHONE_NUMBER")
 
-TWILIO_DEBUG = True
+# SMS settings
+TWILIO_DEBUG = True  # Set to False in production to actually send SMS
+
+# ================= ADDITIONAL SECURITY (for production) =================
+# Uncomment these in production
+# SECURE_SSL_REDIRECT = True
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+# SECURE_BROWSER_XSS_FILTER = True
+# SECURE_CONTENT_TYPE_NOSNIFF = True
+# X_FRAME_OPTIONS = 'DENY'

@@ -87,6 +87,10 @@
             background: transparent;
             color: #64748b;
             border: 1px solid #e2e8f0;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
         }
         
         .nav-btn-primary {
@@ -98,6 +102,28 @@
         .nav-btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .nav-btn-danger {
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+        }
+        
+        .nav-btn-danger:hover {
+            background: #fecaca;
+            transform: translateY(-2px);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            font-size: 14px;
+            color: #1e293b;
         }
         
         /* Stats Grid */
@@ -376,7 +402,6 @@
         .alert-item {
             padding: 16px;
             border-radius: 16px;
-            background: #fef9e3;
             margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
@@ -388,8 +413,31 @@
             transform: translateX(4px);
         }
         
-        .alert-item.warning {
-            background: #fef2f2;
+        .alert-item.alert-ac {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .alert-item.alert-lights {
+            background: #e0f2fe;
+            border-left: 4px solid #0ea5e9;
+        }
+        
+        .alert-item.alert-both {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+        
+        .alert-item.alert-ac .alert-type {
+            color: #92400e;
+        }
+        
+        .alert-item.alert-lights .alert-type {
+            color: #075985;
+        }
+        
+        .alert-item.alert-both .alert-type {
+            color: #991b1b;
         }
         
         .alert-info {
@@ -405,7 +453,6 @@
         .alert-type {
             font-weight: 600;
             font-size: 14px;
-            color: #92400e;
         }
         
         .alert-time {
@@ -448,11 +495,6 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
-        }
-        
-        @keyframes blink {
-            0%, 100% { background: #10b981; }
-            50% { background: #6ee7b7; }
         }
         
         .pulse {
@@ -549,7 +591,23 @@
                 <button class="refresh-btn" onclick="refreshData()">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
-                <a href="/dashboard/admin/" class="nav-btn nav-btn-primary">
+                
+                <!-- User Info & Logout -->
+                {% if user.is_authenticated %}
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{{ user.username }}</span>
+                </div>
+                <a href="{% url 'logout' %}" class="nav-btn nav-btn-danger">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+                {% else %}
+                <a href="{% url 'login' %}" class="nav-btn nav-btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+                {% endif %}
+                
+                <a href="{% url 'admin_panel' %}" class="nav-btn nav-btn-primary">
                     <i class="fas fa-cog"></i> Admin Panel
                 </a>
             </div>
@@ -773,313 +831,370 @@
     </div>
     
     <script>
-    // Function to convert minutes to hours:minutes format
-    function formatDuration(minutes) {
-        if (minutes === null || minutes === undefined) return '0 minutes';
-        
-        const hours = Math.floor(minutes / 60);
-        const mins = Math.floor(minutes % 60);
-        
-        if (hours > 0) {
-            if (mins > 0) {
-                return `${hours} hour${hours > 1 ? 's' : ''} and ${mins} minute${mins > 1 ? 's' : ''}`;
-            } else {
-                return `${hours} hour${hours > 1 ? 's' : ''}`;
-            }
-        } else {
-            return `${mins} minute${mins !== 1 ? 's' : ''}`;
-        }
-    }
+// Function to convert minutes to hours:minutes format
+function formatDuration(minutes) {
+    if (minutes === null || minutes === undefined) return '0 minutes';
     
-    // Function to format short duration (for display)
-    function formatDurationShort(minutes) {
-        if (minutes === null || minutes === undefined) return '--';
-        
-        const hours = Math.floor(minutes / 60);
-        const mins = Math.floor(minutes % 60);
-        
-        if (hours > 0) {
-            return `${hours}h ${mins}m`;
-        } else {
-            return `${mins}m`;
-        }
-    }
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.floor(minutes % 60);
     
-    // Function to calculate data age
-    function calculateDataAge(lastDataTime) {
-        if (!lastDataTime) return null;
-        const now = new Date();
-        const lastTime = new Date(lastDataTime);
-        const diffMinutes = Math.floor((now - lastTime) / 1000 / 60);
-        const diffHours = Math.floor(diffMinutes / 60);
-        const diffMins = diffMinutes % 60;
-        
-        if (diffHours > 0) {
-            return `${diffHours}h ${diffMins}m ago`;
-        } else if (diffMinutes > 0) {
-            return `${diffMinutes}m ago`;
+    if (hours > 0) {
+        if (mins > 0) {
+            return `${hours} hour${hours > 1 ? 's' : ''} and ${mins} minute${mins > 1 ? 's' : ''}`;
         } else {
-            const diffSeconds = Math.floor((now - lastTime) / 1000);
-            return `${diffSeconds}s ago`;
+            return `${hours} hour${hours > 1 ? 's' : ''}`;
         }
+    } else {
+        return `${mins} minute${mins !== 1 ? 's' : ''}`;
     }
+}
+
+// Function to format short duration (for display)
+function formatDurationShort(minutes) {
+    if (minutes === null || minutes === undefined) return '--';
     
-    // Function to load alerts
-    function loadAlerts() {
-        fetch('/api/alerts/')
-            .then(response => response.json())
-            .then(data => {
-                const alertsList = document.getElementById('alertsList');
-                if (data.alerts && data.alerts.length > 0) {
-                    alertsList.innerHTML = '';
-                    data.alerts.slice(0, 10).forEach(alert => {
-                        const alertDiv = document.createElement('div');
-                        alertDiv.className = `alert-item ${alert.alert_type === 'ac' ? 'warning' : ''}`;
-                        alertDiv.innerHTML = `
-                            <div class="alert-info">
-                                <div class="alert-icon">
-                                    ${alert.alert_type === 'ac' ? '❄️' : alert.alert_type === 'lights' ? '💡' : '⚠️'}
-                                </div>
-                                <div>
-                                    <div class="alert-type">${alert.alert_display || alert.alert_type}</div>
-                                    <div class="alert-time">
-                                        <i class="far fa-clock"></i> ${new Date(alert.timestamp).toLocaleString()}
-                                    </div>
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.floor(minutes % 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${mins}m`;
+    } else {
+        return `${mins}m`;
+    }
+}
+
+// Function to calculate data age
+function calculateDataAge(lastDataTime) {
+    if (!lastDataTime) return null;
+    const now = new Date();
+    const lastTime = new Date(lastDataTime);
+    const diffMinutes = Math.floor((now - lastTime) / 1000 / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffMins = diffMinutes % 60;
+    
+    if (diffHours > 0) {
+        return `${diffHours}h ${diffMins}m ago`;
+    } else if (diffMinutes > 0) {
+        return `${diffMinutes}m ago`;
+    } else {
+        const diffSeconds = Math.floor((now - lastTime) / 1000);
+        return `${diffSeconds}s ago`;
+    }
+}
+
+// Function to get appropriate display value based on alert type
+function getAlertDetail(alert) {
+    switch(alert.alert_type) {
+        case 'ac':
+            return `${alert.temperature}°C`;
+        case 'lights':
+            return `${Math.round(alert.lux)} lux`;
+        case 'both':
+            return `${alert.temperature}°C  ${Math.round(alert.lux)} lux`;
+        default:
+            return `${alert.temperature}°C`;
+    }
+}
+
+// Function to get appropriate icon based on alert type
+function getAlertIcon(alert_type) {
+    switch(alert_type) {
+        case 'ac':
+            return '❄️';
+        case 'lights':
+            return '💡';
+        case 'both':
+            return '⚠️';
+        default:
+            return '🔔';
+    }
+}
+
+// Function to get detail icon
+function getDetailIcon(alert_type) {
+    switch(alert_type) {
+        case 'ac':
+            return '🌡️';
+        case 'lights':
+            return '💡';
+        case 'both':
+            return '⚡';
+        default:
+            return '📊';
+    }
+}
+
+// Updated loadAlerts function
+function loadAlerts() {
+    fetch('/api/alerts/')
+        .then(response => response.json())
+        .then(data => {
+            const alertsList = document.getElementById('alertsList');
+            if (data.alerts && data.alerts.length > 0) {
+                alertsList.innerHTML = '';
+                data.alerts.slice(0, 10).forEach(alert => {
+                    const alertDiv = document.createElement('div');
+                    
+                    // Set appropriate class based on alert type
+                    if (alert.alert_type === 'ac') {
+                        alertDiv.className = 'alert-item alert-ac';
+                    } else if (alert.alert_type === 'lights') {
+                        alertDiv.className = 'alert-item alert-lights';
+                    } else if (alert.alert_type === 'both') {
+                        alertDiv.className = 'alert-item alert-both';
+                    } else {
+                        alertDiv.className = 'alert-item';
+                    }
+                    
+                    const detailText = getAlertDetail(alert);
+                    const detailIcon = getDetailIcon(alert.alert_type);
+                    
+                    alertDiv.innerHTML = `
+                        <div class="alert-info">
+                            <div class="alert-icon">
+                                ${getAlertIcon(alert.alert_type)}
+                            </div>
+                            <div>
+                                <div class="alert-type">${alert.alert_display || alert.alert_type}</div>
+                                <div class="alert-time">
+                                    <i class="far fa-clock"></i> ${new Date(alert.timestamp).toLocaleString()}
                                 </div>
                             </div>
-                            <div style="font-weight: 600;">
-                                ${alert.temperature}°C
-                            </div>
-                        `;
-                        alertsList.appendChild(alertDiv);
-                    });
-                } else {
-                    alertsList.innerHTML = `
-                        <div style="text-align: center; padding: 48px; color: #94a3b8;">
-                            <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
-                            <p>No alerts yet. Everything is running efficiently!</p>
+                        </div>
+                        <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                            ${detailIcon ? `<span>${detailIcon}</span>` : ''}
+                            <span>${detailText}</span>
                         </div>
                     `;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading alerts:', error);
-                document.getElementById('alertsList').innerHTML = `
-                    <div style="text-align: center; padding: 48px; color: #dc2626;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
-                        <p>Error loading alerts</p>
+                    alertsList.appendChild(alertDiv);
+                });
+            } else {
+                alertsList.innerHTML = `
+                    <div style="text-align: center; padding: 48px; color: #94a3b8;">
+                        <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                        <p>No alerts yet. Everything is running efficiently!</p>
                     </div>
                 `;
-            });
-    }
-    
-    function refreshData() {
-        fetch('/api/status/CLASSROOM_101/')
-            .then(response => response.json())
-            .then(data => {
-                console.log("API Data:", data);
-                
-                const isOnline = data.is_online || false;
-                const temp = data.temperature;
-                const sound = data.sound_level;
-                const distance = data.distance;
-                const lux = data.lux;
-                const motion = data.motion_detected || false;
-                const ac = data.ac_on || false;
-                const lights = data.lights_on || false;
-                const isOccupied = data.is_occupied || false;
-                const vibration = data.current_vibration || 0;
-                const offlineDuration = data.offline_duration_minutes || 0;
-                const lastDataReceived = data.last_data_received;
-                
-                // Update data age badge
-                if (lastDataReceived && isOnline) {
-                    const ageString = calculateDataAge(lastDataReceived);
-                    document.getElementById('dataAgeText').innerHTML = ageString;
-                    document.getElementById('dataAgeBadge').className = 'data-age-badge';
-                } else if (!isOnline && offlineDuration > 0) {
-                    document.getElementById('dataAgeText').innerHTML = formatDurationShort(offlineDuration) + ' offline';
-                    document.getElementById('dataAgeBadge').className = 'data-age-badge warning';
-                } else {
-                    document.getElementById('dataAgeText').innerHTML = 'No data';
-                    document.getElementById('dataAgeBadge').className = 'data-age-badge warning';
-                }
-                
-                // Update UI based on online status
-                if (!isOnline) {
-                    // Show offline state with formatted duration
-                    document.getElementById('roomStatusCard').classList.add('offline');
-                    document.getElementById('statusIconLarge').innerHTML = '📡';
-                    document.getElementById('statusTextLarge').innerHTML = 'DEVICE OFFLINE';
-                    document.getElementById('statusSub').innerHTML = `<i class="fas fa-exclamation-triangle"></i> No data received`;
-                    document.getElementById('offlineMessage').style.display = 'block';
-                    const formattedOffline = formatDuration(offlineDuration);
-                    document.getElementById('offlineDuration').innerHTML = formattedOffline;
-                    document.getElementById('timerCard').style.display = 'none';
-                    
-                    // Update live indicator
-                    document.getElementById('liveIndicator').classList.add('offline');
-                    document.getElementById('liveDot').classList.add('offline');
-                    document.getElementById('liveText').innerHTML = 'OFFLINE';
-                    
-                    // Mark all stat cards as offline
-                    document.getElementById('statCardTemp').classList.add('offline');
-                    document.getElementById('statCardSound').classList.add('offline');
-                    document.getElementById('statCardDistance').classList.add('offline');
-                    document.getElementById('statCardLight').classList.add('offline');
-                    
-                    // Mark all cards as offline
-                    document.getElementById('energyCard').classList.add('offline');
-                    document.getElementById('environmentalCard').classList.add('offline');
-                    document.getElementById('occupancyCard').classList.add('offline');
-                    
-                    // Set stat values to --
-                    document.getElementById('statTemp').innerHTML = '--<span style="font-size: 20px;">°C</span>';
-                    document.getElementById('statSound').innerHTML = '--<span style="font-size: 20px;">dB</span>';
-                    document.getElementById('statDistance').innerHTML = '--<span style="font-size: 20px;">cm</span>';
-                    document.getElementById('statLight').innerHTML = '--<span style="font-size: 20px;">lux</span>';
-                    
-                    // Set card values to --
-                    document.getElementById('envTemp').innerHTML = '--<span class="sensor-unit">°C</span>';
-                    document.getElementById('envLight').innerHTML = '--<span class="sensor-unit">lux</span>';
-                    document.getElementById('envSound').innerHTML = '--<span class="sensor-unit">dB</span>';
-                    document.getElementById('occDistance').innerHTML = '--<span class="sensor-unit">cm</span>';
-                    document.getElementById('occVibration').innerHTML = '--<span class="sensor-unit">m/s²</span>';
-                    document.getElementById('occActivity').innerHTML = '--';
-                    
-                    // Set badges to offline state
-                    document.getElementById('acBadge').innerHTML = '<i class="fas fa-circle"></i> OFFLINE';
-                    document.getElementById('acBadge').className = 'status-badge badge-offline';
-                    document.getElementById('lightBadge').innerHTML = '<i class="fas fa-circle"></i> OFFLINE';
-                    document.getElementById('lightBadge').className = 'status-badge badge-offline';
-                    document.getElementById('motionBadge').innerHTML = '<i class="fas fa-times"></i> OFFLINE';
-                    document.getElementById('motionBadge').className = 'status-badge badge-offline';
-                    
-                    return;
-                }
-                
-                // Online state - show data
-                document.getElementById('roomStatusCard').classList.remove('offline');
-                document.getElementById('offlineMessage').style.display = 'none';
-                
-                // Update live indicator
-                document.getElementById('liveIndicator').classList.remove('offline');
-                document.getElementById('liveDot').classList.remove('offline');
-                document.getElementById('liveText').innerHTML = 'LIVE';
-                
-                // Remove offline class from all cards
-                document.getElementById('statCardTemp').classList.remove('offline');
-                document.getElementById('statCardSound').classList.remove('offline');
-                document.getElementById('statCardDistance').classList.remove('offline');
-                document.getElementById('statCardLight').classList.remove('offline');
-                document.getElementById('energyCard').classList.remove('offline');
-                document.getElementById('environmentalCard').classList.remove('offline');
-                document.getElementById('occupancyCard').classList.remove('offline');
-                
-                // Update top stats
-                document.getElementById('statTemp').innerHTML = (temp || 0).toFixed(1) + '<span style="font-size: 20px;">°C</span>';
-                document.getElementById('statSound').innerHTML = Math.round(sound || 0) + '<span style="font-size: 20px;">dB</span>';
-                document.getElementById('statDistance').innerHTML = (distance || 0) + '<span style="font-size: 20px;">cm</span>';
-                document.getElementById('statLight').innerHTML = Math.round(lux || 0) + '<span style="font-size: 20px;">lux</span>';
-                
-                // Update environmental card
-                document.getElementById('envTemp').innerHTML = (temp || 0).toFixed(1) + '<span class="sensor-unit">°C</span>';
-                document.getElementById('envLight').innerHTML = Math.round(lux || 0) + '<span class="sensor-unit">lux</span>';
-                document.getElementById('envSound').innerHTML = Math.round(sound || 0) + '<span class="sensor-unit">dB</span>';
-                
-                // Update occupancy card
-                document.getElementById('occDistance').innerHTML = (distance || 0) + '<span class="sensor-unit">cm</span>';
-                document.getElementById('occVibration').innerHTML = (vibration || 0).toFixed(1) + '<span class="sensor-unit">m/s²</span>';
-                document.getElementById('occActivity').innerHTML = motion ? 'Active' : 'Idle';
-                
-                // Update badges
-                const acBadge = document.getElementById('acBadge');
-                if (ac) {
-                    acBadge.innerHTML = '<i class="fas fa-power-off"></i> ON';
-                    acBadge.className = 'status-badge badge-on';
-                } else {
-                    acBadge.innerHTML = '<i class="fas fa-circle"></i> OFF';
-                    acBadge.className = 'status-badge badge-off';
-                }
-                
-                const lightBadge = document.getElementById('lightBadge');
-                if (lights) {
-                    lightBadge.innerHTML = '<i class="fas fa-power-off"></i> ON';
-                    lightBadge.className = 'status-badge badge-on';
-                } else {
-                    lightBadge.innerHTML = '<i class="fas fa-circle"></i> OFF';
-                    lightBadge.className = 'status-badge badge-off';
-                }
-                
-                const motionBadge = document.getElementById('motionBadge');
-                if (motion) {
-                    motionBadge.innerHTML = '<i class="fas fa-check"></i> YES';
-                    motionBadge.className = 'status-badge badge-on';
-                } else {
-                    motionBadge.innerHTML = '<i class="fas fa-times"></i> NO';
-                    motionBadge.className = 'status-badge badge-off';
-                }
-                
-                // Update room status card
-                const statusIconLarge = document.getElementById('statusIconLarge');
-                const statusTextLarge = document.getElementById('statusTextLarge');
-                const statusSub = document.getElementById('statusSub');
-                const timerCard = document.getElementById('timerCard');
-                const alertTriggered = document.getElementById('alertTriggered');
-                const timerValue = document.getElementById('timerValue');
-                
-                if (isOccupied) {
-                    statusIconLarge.innerHTML = '👥';
-                    statusTextLarge.innerHTML = 'ROOM OCCUPIED';
-                    if (data.last_occupied_time) {
-                        statusSub.innerHTML = `<i class="fas fa-clock"></i> Last detected: ${new Date(data.last_occupied_time).toLocaleTimeString()}`;
-                    } else {
-                        statusSub.innerHTML = `<i class="fas fa-user"></i> Room is currently occupied`;
-                    }
-                    timerCard.style.display = 'none';
-                } else {
-                    statusIconLarge.innerHTML = '🏠';
-                    statusTextLarge.innerHTML = 'ROOM EMPTY';
-                    if (data.empty_since) {
-                        statusSub.innerHTML = `<i class="fas fa-clock"></i> Empty since: ${new Date(data.empty_since).toLocaleTimeString()}`;
-                    } else {
-                        statusSub.innerHTML = `<i class="fas fa-user-slash"></i> Room is empty`;
-                    }
-                    
-                    // Show timer if empty
-                    if (data.empty_duration_minutes !== undefined && data.empty_duration_minutes !== null) {
-                        timerCard.style.display = 'block';
-                        const threshold = 5; // Default threshold
-                        const emptyMinutes = Math.floor(data.empty_duration_minutes);
-                        timerValue.innerHTML = `${emptyMinutes} / ${threshold}`;
-                        if (emptyMinutes >= threshold) {
-                            alertTriggered.style.display = 'block';
-                        } else {
-                            alertTriggered.style.display = 'none';
-                        }
-                    }
-                }
-            })
-            .catch(error => {
-                console.log('Error:', error);
-                // Show offline state on error
+            }
+        })
+        .catch(error => {
+            console.error('Error loading alerts:', error);
+            document.getElementById('alertsList').innerHTML = `
+                <div style="text-align: center; padding: 48px; color: #dc2626;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                    <p>Error loading alerts</p>
+                </div>
+            `;
+        });
+}
+
+function refreshData() {
+    fetch('/api/status/CLASSROOM_101/')
+        .then(response => response.json())
+        .then(data => {
+            console.log("API Data:", data);
+            
+            const isOnline = data.is_online || false;
+            const temp = data.temperature;
+            const sound = data.sound_level;
+            const distance = data.distance;
+            const lux = data.lux;
+            const motion = data.motion_detected || false;
+            const ac = data.ac_on || false;
+            const lights = data.lights_on || false;
+            const isOccupied = data.is_occupied || false;
+            const vibration = data.current_vibration || 0;
+            const offlineDuration = data.offline_duration_minutes || 0;
+            const lastDataReceived = data.last_data_received;
+            
+            // Update data age badge
+            if (lastDataReceived && isOnline) {
+                const ageString = calculateDataAge(lastDataReceived);
+                document.getElementById('dataAgeText').innerHTML = ageString;
+                document.getElementById('dataAgeBadge').className = 'data-age-badge';
+            } else if (!isOnline && offlineDuration > 0) {
+                document.getElementById('dataAgeText').innerHTML = formatDurationShort(offlineDuration) + ' offline';
+                document.getElementById('dataAgeBadge').className = 'data-age-badge warning';
+            } else {
+                document.getElementById('dataAgeText').innerHTML = 'No data';
+                document.getElementById('dataAgeBadge').className = 'data-age-badge warning';
+            }
+            
+            // Update UI based on online status
+            if (!isOnline) {
+                // Show offline state with formatted duration
                 document.getElementById('roomStatusCard').classList.add('offline');
                 document.getElementById('statusIconLarge').innerHTML = '📡';
-                document.getElementById('statusTextLarge').innerHTML = 'CONNECTION ERROR';
-                document.getElementById('statusSub').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Cannot reach server';
+                document.getElementById('statusTextLarge').innerHTML = 'DEVICE OFFLINE';
+                document.getElementById('statusSub').innerHTML = `<i class="fas fa-exclamation-triangle"></i> No data received`;
                 document.getElementById('offlineMessage').style.display = 'block';
-                document.getElementById('offlineDuration').innerHTML = 'connection issue';
-                document.getElementById('offlineMessage').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Server connection error';
-            });
-    }
-    
-    // Refresh every 5 seconds
-    setInterval(refreshData, 5000);
-    setInterval(loadAlerts, 30000);
-    
-    // Initial load
-    refreshData();
-    loadAlerts();
-    </script>
+                const formattedOffline = formatDuration(offlineDuration);
+                document.getElementById('offlineDuration').innerHTML = formattedOffline;
+                document.getElementById('timerCard').style.display = 'none';
+                
+                // Update live indicator
+                document.getElementById('liveIndicator').classList.add('offline');
+                document.getElementById('liveDot').classList.add('offline');
+                document.getElementById('liveText').innerHTML = 'OFFLINE';
+                
+                // Mark all stat cards as offline
+                document.getElementById('statCardTemp').classList.add('offline');
+                document.getElementById('statCardSound').classList.add('offline');
+                document.getElementById('statCardDistance').classList.add('offline');
+                document.getElementById('statCardLight').classList.add('offline');
+                
+                // Mark all cards as offline
+                document.getElementById('energyCard').classList.add('offline');
+                document.getElementById('environmentalCard').classList.add('offline');
+                document.getElementById('occupancyCard').classList.add('offline');
+                
+                // Set stat values to --
+                document.getElementById('statTemp').innerHTML = '--<span style="font-size: 20px;">°C</span>';
+                document.getElementById('statSound').innerHTML = '--<span style="font-size: 20px;">dB</span>';
+                document.getElementById('statDistance').innerHTML = '--<span style="font-size: 20px;">cm</span>';
+                document.getElementById('statLight').innerHTML = '--<span style="font-size: 20px;">lux</span>';
+                
+                // Set card values to --
+                document.getElementById('envTemp').innerHTML = '--<span class="sensor-unit">°C</span>';
+                document.getElementById('envLight').innerHTML = '--<span class="sensor-unit">lux</span>';
+                document.getElementById('envSound').innerHTML = '--<span class="sensor-unit">dB</span>';
+                document.getElementById('occDistance').innerHTML = '--<span class="sensor-unit">cm</span>';
+                document.getElementById('occVibration').innerHTML = '--<span class="sensor-unit">m/s²</span>';
+                document.getElementById('occActivity').innerHTML = '--';
+                
+                // Set badges to offline state
+                document.getElementById('acBadge').innerHTML = '<i class="fas fa-circle"></i> OFFLINE';
+                document.getElementById('acBadge').className = 'status-badge badge-offline';
+                document.getElementById('lightBadge').innerHTML = '<i class="fas fa-circle"></i> OFFLINE';
+                document.getElementById('lightBadge').className = 'status-badge badge-offline';
+                document.getElementById('motionBadge').innerHTML = '<i class="fas fa-times"></i> OFFLINE';
+                document.getElementById('motionBadge').className = 'status-badge badge-offline';
+                
+                return;
+            }
+            
+            // Online state - show data
+            document.getElementById('roomStatusCard').classList.remove('offline');
+            document.getElementById('offlineMessage').style.display = 'none';
+            
+            // Update live indicator
+            document.getElementById('liveIndicator').classList.remove('offline');
+            document.getElementById('liveDot').classList.remove('offline');
+            document.getElementById('liveText').innerHTML = 'LIVE';
+            
+            // Remove offline class from all cards
+            document.getElementById('statCardTemp').classList.remove('offline');
+            document.getElementById('statCardSound').classList.remove('offline');
+            document.getElementById('statCardDistance').classList.remove('offline');
+            document.getElementById('statCardLight').classList.remove('offline');
+            document.getElementById('energyCard').classList.remove('offline');
+            document.getElementById('environmentalCard').classList.remove('offline');
+            document.getElementById('occupancyCard').classList.remove('offline');
+            
+            // Update top stats
+            document.getElementById('statTemp').innerHTML = (temp || 0).toFixed(1) + '<span style="font-size: 20px;">°C</span>';
+            document.getElementById('statSound').innerHTML = Math.round(sound || 0) + '<span style="font-size: 20px;">dB</span>';
+            document.getElementById('statDistance').innerHTML = (distance || 0) + '<span style="font-size: 20px;">cm</span>';
+            document.getElementById('statLight').innerHTML = Math.round(lux || 0) + '<span style="font-size: 20px;">lux</span>';
+            
+            // Update environmental card
+            document.getElementById('envTemp').innerHTML = (temp || 0).toFixed(1) + '<span class="sensor-unit">°C</span>';
+            document.getElementById('envLight').innerHTML = Math.round(lux || 0) + '<span class="sensor-unit">lux</span>';
+            document.getElementById('envSound').innerHTML = Math.round(sound || 0) + '<span class="sensor-unit">dB</span>';
+            
+            // Update occupancy card
+            document.getElementById('occDistance').innerHTML = (distance || 0) + '<span class="sensor-unit">cm</span>';
+            document.getElementById('occVibration').innerHTML = (vibration || 0).toFixed(1) + '<span class="sensor-unit">m/s²</span>';
+            document.getElementById('occActivity').innerHTML = motion ? 'Active' : 'Idle';
+            
+            // Update badges
+            const acBadge = document.getElementById('acBadge');
+            if (ac) {
+                acBadge.innerHTML = '<i class="fas fa-power-off"></i> ON';
+                acBadge.className = 'status-badge badge-on';
+            } else {
+                acBadge.innerHTML = '<i class="fas fa-circle"></i> OFF';
+                acBadge.className = 'status-badge badge-off';
+            }
+            
+            const lightBadge = document.getElementById('lightBadge');
+            if (lights) {
+                lightBadge.innerHTML = '<i class="fas fa-power-off"></i> ON';
+                lightBadge.className = 'status-badge badge-on';
+            } else {
+                lightBadge.innerHTML = '<i class="fas fa-circle"></i> OFF';
+                lightBadge.className = 'status-badge badge-off';
+            }
+            
+            const motionBadge = document.getElementById('motionBadge');
+            if (motion) {
+                motionBadge.innerHTML = '<i class="fas fa-check"></i> YES';
+                motionBadge.className = 'status-badge badge-on';
+            } else {
+                motionBadge.innerHTML = '<i class="fas fa-times"></i> NO';
+                motionBadge.className = 'status-badge badge-off';
+            }
+            
+            // Update room status card
+            const statusIconLarge = document.getElementById('statusIconLarge');
+            const statusTextLarge = document.getElementById('statusTextLarge');
+            const statusSub = document.getElementById('statusSub');
+            const timerCard = document.getElementById('timerCard');
+            const alertTriggered = document.getElementById('alertTriggered');
+            const timerValue = document.getElementById('timerValue');
+            
+            if (isOccupied) {
+                statusIconLarge.innerHTML = '👥';
+                statusTextLarge.innerHTML = 'ROOM OCCUPIED';
+                if (data.last_occupied_time) {
+                    statusSub.innerHTML = `<i class="fas fa-clock"></i> Last detected: ${new Date(data.last_occupied_time).toLocaleTimeString()}`;
+                } else {
+                    statusSub.innerHTML = `<i class="fas fa-user"></i> Room is currently occupied`;
+                }
+                timerCard.style.display = 'none';
+            } else {
+                statusIconLarge.innerHTML = '🏠';
+                statusTextLarge.innerHTML = 'ROOM EMPTY';
+                if (data.empty_since) {
+                    statusSub.innerHTML = `<i class="fas fa-clock"></i> Empty since: ${new Date(data.empty_since).toLocaleTimeString()}`;
+                } else {
+                    statusSub.innerHTML = `<i class="fas fa-user-slash"></i> Room is empty`;
+                }
+                
+                // Show timer if empty
+                if (data.empty_duration_minutes !== undefined && data.empty_duration_minutes !== null) {
+                    timerCard.style.display = 'block';
+                    const threshold = 5; // Default threshold
+                    const emptyMinutes = Math.floor(data.empty_duration_minutes);
+                    timerValue.innerHTML = `${emptyMinutes} / ${threshold}`;
+                    if (emptyMinutes >= threshold) {
+                        alertTriggered.style.display = 'block';
+                    } else {
+                        alertTriggered.style.display = 'none';
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.log('Error:', error);
+            // Show offline state on error
+            document.getElementById('roomStatusCard').classList.add('offline');
+            document.getElementById('statusIconLarge').innerHTML = '📡';
+            document.getElementById('statusTextLarge').innerHTML = 'CONNECTION ERROR';
+            document.getElementById('statusSub').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Cannot reach server';
+            document.getElementById('offlineMessage').style.display = 'block';
+            document.getElementById('offlineDuration').innerHTML = 'connection issue';
+            document.getElementById('offlineMessage').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Server connection error';
+        });
+}
+
+// Refresh every 5 seconds
+setInterval(refreshData, 5000);
+setInterval(loadAlerts, 30000);
+
+// Initial load
+refreshData();
+loadAlerts();
+</script>
 </body>
 </html>
