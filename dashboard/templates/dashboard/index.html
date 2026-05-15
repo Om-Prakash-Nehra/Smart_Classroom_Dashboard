@@ -868,6 +868,11 @@ function calculateDataAge(lastDataTime) {
     if (!lastDataTime) return null;
     const now = new Date();
     const lastTime = new Date(lastDataTime);
+    
+    if (lastTime > now) {
+        return `0s ago`;
+    }
+    
     const diffMinutes = Math.floor((now - lastTime) / 1000 / 60);
     const diffHours = Math.floor(diffMinutes / 60);
     const diffMins = diffMinutes % 60;
@@ -878,7 +883,9 @@ function calculateDataAge(lastDataTime) {
         return `${diffMinutes}m ago`;
     } else {
         const diffSeconds = Math.floor((now - lastTime) / 1000);
-        return `${diffSeconds}s ago`;
+        // Ensure we don't show negative seconds
+        const secondsAgo = Math.max(0, diffSeconds);
+        return `${secondsAgo}s ago`;
     }
 }
 
