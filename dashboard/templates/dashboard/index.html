@@ -263,27 +263,6 @@
             font-size: 16px;
         }
         
-        .timer-card {
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 20px 32px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .timer-label {
-            font-size: 14px;
-            opacity: 0.8;
-            margin-bottom: 8px;
-        }
-        
-        .timer-value-large {
-            font-size: 48px;
-            font-weight: 800;
-            margin-bottom: 4px;
-        }
-        
         /* Grid Layout */
         .dashboard-grid {
             display: grid;
@@ -692,7 +671,6 @@
                         </div>
                     </div>
                 </div>
-                
             </div>
             <div class="offline-message" id="offlineMessage" style="display: none;">
                 <i class="fas fa-exclamation-triangle"></i> Device Offline - No data received for <span id="offlineDuration">0</span>
@@ -1024,7 +1002,6 @@ function refreshData() {
                 document.getElementById('offlineMessage').style.display = 'block';
                 const formattedOffline = formatDuration(offlineDuration);
                 document.getElementById('offlineDuration').innerHTML = formattedOffline;
-                document.getElementById('timerCard').style.display = 'none';
                 
                 // Update live indicator
                 document.getElementById('liveIndicator').classList.add('offline');
@@ -1129,11 +1106,28 @@ function refreshData() {
                 motionBadge.className = 'status-badge badge-off';
             }
             
-            // Update room status card
+            // Update room status card (NO TIMER REFERENCES)
             const statusIconLarge = document.getElementById('statusIconLarge');
             const statusTextLarge = document.getElementById('statusTextLarge');
             const statusSub = document.getElementById('statusSub');
             
+            if (isOccupied) {
+                statusIconLarge.innerHTML = '👥';
+                statusTextLarge.innerHTML = 'ROOM OCCUPIED';
+                if (data.last_occupied_time) {
+                    statusSub.innerHTML = `<i class="fas fa-clock"></i> Last detected: ${new Date(data.last_occupied_time).toLocaleTimeString()}`;
+                } else {
+                    statusSub.innerHTML = `<i class="fas fa-user"></i> Room is currently occupied`;
+                }
+            } else {
+                statusIconLarge.innerHTML = '🏠';
+                statusTextLarge.innerHTML = 'UNOCCUPIED';
+                if (data.empty_since) {
+                    statusSub.innerHTML = `<i class="fas fa-clock"></i> Empty since: ${new Date(data.empty_since).toLocaleTimeString()}`;
+                } else {
+                    statusSub.innerHTML = `<i class="fas fa-user-slash"></i> Room is unoccupied`;
+                }
+            }
         })
         .catch(error => {
             console.log('Error:', error);
