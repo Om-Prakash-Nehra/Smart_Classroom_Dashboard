@@ -1133,41 +1133,7 @@ function refreshData() {
             const statusIconLarge = document.getElementById('statusIconLarge');
             const statusTextLarge = document.getElementById('statusTextLarge');
             const statusSub = document.getElementById('statusSub');
-            const timerCard = document.getElementById('timerCard');
-            const alertTriggered = document.getElementById('alertTriggered');
-            const timerValue = document.getElementById('timerValue');
             
-            if (isOccupied) {
-                statusIconLarge.innerHTML = '👥';
-                statusTextLarge.innerHTML = 'ROOM OCCUPIED';
-                if (data.last_occupied_time) {
-                    statusSub.innerHTML = `<i class="fas fa-clock"></i> Last detected: ${new Date(data.last_occupied_time).toLocaleTimeString()}`;
-                } else {
-                    statusSub.innerHTML = `<i class="fas fa-user"></i> Room is currently occupied`;
-                }
-                timerCard.style.display = 'none';
-            } else {
-                statusIconLarge.innerHTML = '🏠';
-                statusTextLarge.innerHTML = 'ROOM EMPTY';
-                if (data.empty_since) {
-                    statusSub.innerHTML = `<i class="fas fa-clock"></i> Empty since: ${new Date(data.empty_since).toLocaleTimeString()}`;
-                } else {
-                    statusSub.innerHTML = `<i class="fas fa-user-slash"></i> Room is empty`;
-                }
-                
-                // Show timer if empty
-                if (data.empty_duration_minutes !== undefined && data.empty_duration_minutes !== null) {
-                    timerCard.style.display = 'block';
-                    const threshold = 5; // Default threshold
-                    const emptyMinutes = Math.floor(data.empty_duration_minutes);
-                    timerValue.innerHTML = `${emptyMinutes} / ${threshold}`;
-                    if (emptyMinutes >= threshold) {
-                        alertTriggered.style.display = 'block';
-                    } else {
-                        alertTriggered.style.display = 'none';
-                    }
-                }
-            }
         })
         .catch(error => {
             console.log('Error:', error);
